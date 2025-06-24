@@ -22,9 +22,17 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> {}) // <-- ATIVA CORS
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/cadastrar", "/criar-checkout", "/webhook", "/site/**", "/meus-sites/**").permitAll()
+                        .requestMatchers(
+                                "/login",
+                                "/cadastrar",
+                                "/criar-checkout",
+                                "/webhook",
+                                "/site/**",
+                                "/meus-sites/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
