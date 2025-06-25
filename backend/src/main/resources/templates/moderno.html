@@ -1,0 +1,39 @@
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${nome}">Nome do Site</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Roboto', sans-serif; background: #f4f4f9; color: #333; }
+        header { background: #2575fc; padding: 20px; color: #fff; text-align: center; }
+        header h1 { margin: 0; font-size: 2.5rem; }
+        section { padding: 60px 20px; }
+        .about { max-width: 800px; margin: auto; display: flex; flex-wrap: wrap; gap: 40px; align-items: center; }
+        .about-text { flex: 1; }
+        .about-text h2 { font-size: 1.8rem; margin-bottom: 15px; }
+        .about-text p { line-height: 1.6; }
+        .about-extra { flex: 1; text-align: center; }
+        .about-extra a { display: inline-block; margin: 10px; padding: 12px 24px; background: #2575fc; color: #fff; border-radius: 6px; text-decoration: none; }
+        .about-extra a:hover { background: #1a5ed9; }
+        footer { text-align: center; padding: 20px; background: #fff; font-size: 0.9rem; color: #666; }
+    </style>
+</head>
+<body>
+<header>
+    <h1 th:text="${nome}">Nome</h1>
+    <p th:text="${profissao}" style="font-size:1.1rem;">Profissão</p>
+</header>
+<section class="about">
+    <div class="about-text">
+        <h2>Sobre mim</h2>
+        <p th:text="${descricao}">Descrição detalhada.</p>
+    </div>
+    <div class="about-extra">
+        <a th:if="${instagram}" th:href="@{'https://instagram.com/' + ${instagram}}" target="_blank">Instagram</a>
+        <a th:if="${whatsapp}" th:href="@{'https://wa.me/' + ${whatsapp}}" target="_blank">WhatsApp</a>
+    </div>
+</section>
+<footer>© 2025 <span th:text="${nome}">Seu Nome</span>. Todos os direitos reservados.</footer>
+</body>
+</html>

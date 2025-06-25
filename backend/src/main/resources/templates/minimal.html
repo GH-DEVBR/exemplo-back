@@ -1,0 +1,29 @@
+<!-- minimal.html -->
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${nome}">Nome do Site</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; background: #fff; color: #333; margin: 0; padding: 0; }
+        .wrapper { max-width: 600px; margin: 80px auto; text-align: center; padding: 0 20px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        h2 { font-size: 1.2rem; margin-bottom: 20px; color: #666; }
+        p { line-height: 1.6; margin-bottom: 30px; }
+        .social a { margin: 0 10px; color: #007bff; text-decoration: none; font-weight: bold; }
+        .social a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <h1 th:text="${nome}">Nome</h1>
+    <h2 th:text="${profissao}">Profissão</h2>
+    <p th:text="${descricao}">Descrição sobre você.</p>
+    <div class="social">
+        <a th:if="${instagram}" th:href="@{'https://instagram.com/' + ${instagram}}" target="_blank">Instagram</a>
+        <a th:if="${whatsapp}" th:href="@{'https://wa.me/' + ${whatsapp}}" target="_blank">WhatsApp</a>
+    </div>
+</div>
+</body>
+</html>

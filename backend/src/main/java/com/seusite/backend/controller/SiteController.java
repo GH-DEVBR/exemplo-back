@@ -1,118 +1,126 @@
 package com.seusite.backend.controller;
 
+import com.seusite.backend.dto.SiteRequest;
 import com.seusite.backend.model.SiteModel;
 import com.seusite.backend.model.UsuarioModel;
 import com.seusite.backend.repository.SiteRepository;
 import com.seusite.backend.repository.UsuarioRepository;
 import com.seusite.backend.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
+import java.util.*;
 
-@RestController
+@Controller
 @CrossOrigin(origins = "*")
 public class SiteController {
 
-    @Autowired
-    private SiteRepository siteRepository;
+    private final SiteRepository siteRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final JwtUtil jwtUtil;
 
     @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    // Geração de site com autenticação
-    @PostMapping("/gerar-site")
-    public ResponseEntity<?> gerarSite(@RequestHeader("Authorization") String auth,
-                                       @RequestBody SiteModel siteData) {
-        if (auth == null || !auth.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Token ausente ou inválido");
-        }
-
-        String token = auth.substring(7);
-        String email = jwtUtil.validarToken(token);
-        UsuarioModel usuario = usuarioRepository.findByEmail(email).orElseThrow();
-
-        siteData.setUsuario(usuario);
-
-        String slug = siteData.getNome().toLowerCase().replace(" ", "-");
-        siteData.setSlug(slug);
-
-        siteRepository.save(siteData);
-
-        String html = """
-                <!DOCTYPE html>
-                <html lang="pt-br">
-                <head>
-                  <meta charset="UTF-8">
-                  <title>%s</title>
-                  <style>
-                    body { font-family: sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
-                    h1 { color: #333; }
-                    p { max-width: 600px; margin: auto; }
-                  </style>
-                </head>
-                <body>
-                  <h1>%s</h1>
-                  <p><strong>Profissão:</strong> %s</p>
-                  <p><strong>Sobre:</strong> %s</p>
-                </body>
-                </html>
-                """.formatted(siteData.getNome(), siteData.getNome(), siteData.getProfissao(), siteData.getDescricao());
-
-        return ResponseEntity.ok(html);
+    public SiteController(SiteRepository siteRepository,
+                          UsuarioRepository usuarioRepository,
+                          JwtUtil jwtUtil) {
+        this.siteRepository = siteRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.jwtUtil = jwtUtil;
     }
 
-    // Listar sites do usuário autenticado
-    @GetMapping("/meus-sites")
-    public ResponseEntity<?> meusSites(@RequestHeader("Authorization") String auth) {
+    /**
+     * Gera um slug único, salva o SiteModel e retorna a URL pública em JSON:
+     * { "url": "http://.../site/{slug}" }
+     */
+    @PostMapping("/gerar-site")
+    @ResponseBody
+    public ResponseEntity<Map<String,String>> gerarSite(
+            @RequestHeader("Authorization") String auth,
+            @RequestBody SiteRequest req) {
+
         if (auth == null || !auth.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Token ausente");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token ausente ou inválido");
+        }
+        String email = jwtUtil.validarToken(auth.substring(7));
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
         }
 
-        String token = auth.substring(7);
-        String email = jwtUtil.validarToken(token);
-        if (email == null) return ResponseEntity.status(401).body("Token inválido");
+        UsuarioModel usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não encontrado"));
+
+        // Monta o SiteModel
+        SiteModel site = new SiteModel();
+        site.setNome(req.getNome());
+        site.setProfissao(req.getProfissao());
+        site.setDescricao(req.getDescricao());
+        site.setInstagram(req.getInstagram());
+        site.setWhatsapp(req.getWhatsapp());
+        site.setTemplate(req.getTemplate()); // "minimal", "moderno" ou "elegante"
+        site.setUsuario(usuario);
+
+        // Gera slug amigável + sufixo aleatório
+        String base = req.getNome().toLowerCase().replaceAll("[^a-z0-9]+", "-");
+        String slug = base + "-" + UUID.randomUUID().toString().substring(0, 6);
+        site.setSlug(slug);
+
+        siteRepository.save(site);
+
+        String url = "http://localhost:8080/site/" + slug;
+        return ResponseEntity.ok(Collections.singletonMap("url", url));
+    }
+
+    /**
+     * Retorna a lista de todos os SiteModel do usuário autenticado.
+     */
+    @GetMapping("/meus-sites")
+    @ResponseBody
+    public ResponseEntity<List<SiteModel>> meusSites(
+            @RequestHeader("Authorization") String auth) {
+
+        if (auth == null || !auth.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token ausente");
+        }
+        String email = jwtUtil.validarToken(auth.substring(7));
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
+        }
 
         List<SiteModel> lista = siteRepository.findByUsuarioEmail(email);
         return ResponseEntity.ok(lista);
     }
 
-    // Acessar site publicamente pelo slug
-    @GetMapping("/{slug}")
-    public ResponseEntity<String> exibirSitePorSlug(@PathVariable String slug) {
-        SiteModel site = siteRepository.findBySlug(slug);
+    /**
+     * Renderiza o site público com o template escolhido (minimal, moderno ou elegante).
+     * Os arquivos devem estar em src/main/resources/templates/{minimal.html, moderno.html, elegante.html}
+     */
+    @GetMapping("/site/{slug}")
+    public String exibirSite(
+            @PathVariable String slug,
+            Model model) {
 
-        if (site == null) {
-            return ResponseEntity.notFound().build();
-        }
+        SiteModel site = siteRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Site não encontrado"));
 
-        String html = """
-                <!DOCTYPE html>
-                <html lang="pt-br">
-                <head>
-                  <meta charset="UTF-8">
-                  <title>%s</title>
-                  <style>
-                    body { font-family: sans-serif; text-align: center; padding: 50px; background: #f9f9f9; }
-                    h1 { color: #222; }
-                    p { max-width: 700px; margin: 0 auto; line-height: 1.6; }
-                  </style>
-                </head>
-                <body>
-                  <h1>%s</h1>
-                  <p><strong>Profissão:</strong> %s</p>
-                  <p><strong>Descrição:</strong> %s</p>
-                </body>
-                </html>
-                """.formatted(site.getNome(), site.getNome(), site.getProfissao(), site.getDescricao());
+        // Todos os atributos disponíveis no template:
+        model.addAttribute("nome",       site.getNome());
+        model.addAttribute("profissao",  site.getProfissao());
+        model.addAttribute("descricao",  site.getDescricao());
+        model.addAttribute("instagram",  site.getInstagram());
+        model.addAttribute("whatsapp",   site.getWhatsapp());
 
-        return ResponseEntity.ok(html);
+        // Escolhe o template Thymeleaf conforme a opção salva
+        // (por exemplo, minimal.html, moderno.html ou elegante.html)
+        return site.getTemplate();
     }
 }
+
+
 
 
 
