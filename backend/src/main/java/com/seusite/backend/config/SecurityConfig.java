@@ -56,7 +56,8 @@ public class SecurityConfig {
                 "http://localhost:5500",
                 "http://127.0.0.1:5500",
                 "http://localhost:8081",
-                "http://127.0.0.1:8081"
+                "http://127.0.0.1:8081",
+                "https://heartfelt-phoenix-2ed053.netlify.app"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
